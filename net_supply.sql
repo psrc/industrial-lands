@@ -93,16 +93,16 @@
     --Attach geographic assignments
     UPDATE x 
     SET x.county_id=CAST(county_fip AS smallint)
-    FROM Sandbox.Mike.ilx_indprcl23 AS x JOIN ElmerGeo.dbo.COUNTY_BACKGROUND AS c ON x.CentroidShape.STIntersects(c.Shape)=1
+    FROM Sandbox.Mike.ilx_indprcl23 AS x JOIN ElmerGeo.dbo.county_background_evw AS c ON x.CentroidShape.STIntersects(c.Shape)=1
     WHERE c.county_fip IN('033','035','053','061');
     GO
     UPDATE x 
     SET x.mic=m.mic
-    FROM Sandbox.Mike.ilx_indprcl23 AS x JOIN ElmerGeo.dbo.MICEN AS m ON x.CentroidShape.STIntersects(m.Shape)=1;    
+    FROM Sandbox.Mike.ilx_indprcl23 AS x JOIN ElmerGeo.dbo.micen_evw AS m ON x.CentroidShape.STIntersects(m.Shape)=1;    
     GO
     UPDATE x 
     SET x.urban=CASE WHEN r.class_desc='Metro' AND r.Juris<>'Bremerton' THEN 'Y' ELSE 'N' END
-    FROM Sandbox.Mike.ilx_indprcl23 AS x JOIN ElmerGeo.dbo.PSRC_REGION AS r ON x.CentroidShape.STIntersects(r.Shape)=1;    
+    FROM Sandbox.Mike.ilx_indprcl23 AS x JOIN ElmerGeo.dbo.psrc_revion_evw AS r ON x.CentroidShape.STIntersects(r.Shape)=1;    
     GO  
 
 --QC
@@ -137,20 +137,20 @@ SELECT count(*) FROM Sandbox.Mike.ilx_indprcl23 AS a WHERE NOT EXISTS (SELECT 1 
 
     WITH cte AS(SELECT i.net_flag, c.county_nm, 
                 round(sum(c.Shape.STDifference(e.Shape).STIntersection(i.Shape).STArea() * CASE WHEN rg.class_desc='Metro' THEN .88 ELSE .85 END/43560),2) AS acres
-                FROM ElmerGeo.dbo.COUNTY_BACKGROUND AS c 
+                FROM ElmerGeo.dbo.county_background_evw AS c 
                 LEFT JOIN Sandbox.Mike.ili_2013_net AS i ON 1=1 
                 JOIN Sandbox.Mike.ili_2013_net_exclude AS e ON 1=1
-                LEFT JOIN ElmerGeo.dbo.REGIONAL_GEOGRAPHIES AS rg ON 1=1
+                LEFT JOIN ElmerGeo.dbo.regional_geographies_evw AS rg ON 1=1
                 WHERE c.county_fip IN('033','035','053','061')
                 GROUP BY i.net_flag, c.county_nm)
     SELECT * FROM cte PIVOT (max(acres) FOR net_flag IN([vacant], [redevelopable])) AS p;
 
     WITH cte AS(SELECT i.net_flag, m.mic, 
                 round(sum(m.Shape.STIntersection(i.Shape).STArea() * CASE WHEN rg.class_desc='Metro' THEN .88 ELSE .85 END/43560),2) AS acres
-                FROM ElmerGeo.dbo.MICEN AS m 
+                FROM ElmerGeo.dbo.micen_evw AS m 
                 LEFT JOIN Sandbox.Mike.ili_2013_net AS i ON 1=1 
                 JOIN Sandbox.Mike.ili_2013_net_exclude AS e ON 1=1
-                LEFT JOIN ElmerGeo.dbo.REGIONAL_GEOGRAPHIES AS rg ON 1=1
+                LEFT JOIN ElmerGeo.dbo.regional_geographies_evw AS rg ON 1=1
                 GROUP BY i.net_flag, m.mic)
     SELECT * FROM cte PIVOT (max(acres) FOR net_flag IN([vacant], [redevelopable])) AS p;
 
@@ -158,9 +158,9 @@ SELECT count(*) FROM Sandbox.Mike.ilx_indprcl23 AS a WHERE NOT EXISTS (SELECT 1 
 
     WITH cte AS(SELECT i.net_flag, c.county_nm,     
                 round(sum(c.Shape.STIntersection(i.Shape).STArea()* CASE WHEN rg.class_desc='Metro' THEN .88 ELSE .85 END)/43560,2) AS acres
-                FROM ElmerGeo.dbo.COUNTY_BACKGROUND AS c 
+                FROM ElmerGeo.dbo.county_background_evw AS c 
                 JOIN Sandbox.Mike.ili_2013_net AS i ON 1=1
-                LEFT JOIN ElmerGeo.dbo.REGIONAL_GEOGRAPHIES AS rg ON 1=1
+                LEFT JOIN ElmerGeo.dbo.regional_geographies_evw AS rg ON 1=1
                 WHERE c.county_fip IN('033','035','053','061')
                 GROUP BY i.net_flag, c.county_nm)
     SELECT * FROM cte PIVOT (max(acres) FOR net_flag IN([vacant], [redevelopable])) AS p;
@@ -168,12 +168,12 @@ SELECT count(*) FROM Sandbox.Mike.ilx_indprcl23 AS a WHERE NOT EXISTS (SELECT 1 
     WITH cte AS(SELECT i.net_flag, rg.class_desc,     
                 round(sum(rg.Shape.STIntersection(i.Shape()).STArea())/43560 * .9,2) AS acres
                 FROM Sandbox.Mike.ili_2013_net AS i
-                JOIN ElmerGeo.dbo.REGIONAL_GEOGRAPHIES AS rg ON 1=1
+                JOIN ElmerGeo.dbo.regional_geographies_evw AS rg ON 1=1
                 GROUP BY i.net_flag, rg.class_desc)
     SELECT * FROM cte PIVOT (max(acres) FOR net_flag IN([vacant], [redevelopable])) AS p;
 
     WITH cte AS(SELECT i.net_flag, m.mic, 
                 round(sum(m.Shape.STIntersection(i.Shape).STDifference(w.Shape).STArea())/43560 * .88,2) AS acres
-                FROM ElmerGeo.dbo.MICEN AS m LEFT JOIN Sandbox.Mike.ili_2013_net AS i ON 1=1 LEFT JOIN ElmerGeo.dbo.LARGEST_WATERBODIES as w ON 1=1
+                FROM ElmerGeo.dbo.micen_evw AS m LEFT JOIN Sandbox.Mike.ili_2013_net AS i ON 1=1 LEFT JOIN ElmerGeo.dbo.largest_waterbodies_evw as w ON 1=1
                 GROUP BY i.net_flag, m.mic)
     SELECT * FROM cte PIVOT (max(acres) FOR net_flag IN([vacant], [redevelopable])) AS p;
